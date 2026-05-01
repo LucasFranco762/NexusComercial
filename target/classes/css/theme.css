@@ -1,0 +1,114 @@
+.root {
+    -fx-background-color: #1E1E1E;
+    -fx-font-family: "Segoe UI";
+    -fx-text-fill: #FFFFFF;
+}
+
+.label {
+    -fx-text-fill: #FFFFFF;
+}
+
+.title {
+    -fx-text-fill: #007BFF;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.text-field, .password-field, .combo-box, .date-picker, .text-area {
+    -fx-background-color: #2A2A2A;
+    -fx-text-fill: #FFFFFF;
+    -fx-border-color: #3A3A3A;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.button {
+    -fx-background-color: #007BFF;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.55), 12, 0.4, 0, 0);
+}
+
+.tab-pane .tab-header-background {
+    -fx-background-color: #2A2A2A;
+}
+
+.tab-pane .tab-content-area {
+    -fx-background-color: #1E1E1E;
+}
+
+.tab {
+    -fx-background-color: #2A2A2A;
+}
+
+.tab:selected {
+    -fx-background-color: #007BFF;
+}
+
+.tab .tab-label {
+    -fx-text-fill: #CCCCCC;
+}
+
+.tab:selected .tab-label {
+    -fx-text-fill: #FFFFFF;
+}
+
+.table-view {
+    -fx-base: #1E1E1E;
+    -fx-control-inner-background: #1E1E1E;
+    -fx-table-cell-border-color: #3A3A3A;
+    -fx-background-color: #1E1E1E;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #232323;
+}
+
+.table-row-cell:even {
+    -fx-background-color: #2A2A2A;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #007BFF;
+}
+
+.split-pane {
+    -fx-background-color: #1E1E1E;
+}
+
+.split-pane > .split-pane-divider {
+    -fx-background-color: #3A3A3A;
+}
+
+.list-view {
+    -fx-control-inner-background: #2A2A2A;
+    -fx-background-color: #2A2A2A;
+    -fx-border-color: #3A3A3A;
+}
+
+.list-cell {
+    -fx-background-color: #2A2A2A;
+    -fx-text-fill: #FFFFFF;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: #007BFF;
+    -fx-text-fill: #FFFFFF;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: #FFFFFF;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #2A2A2A;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: #2A2A2A;
+    -fx-text-fill: #FFFFFF;
+}
