@@ -14,11 +14,12 @@ public class ComandaService {
     private final ComandaDao dao = new ComandaDao();
     private final ProductDao productDao = new ProductDao();
     private final ConfigService configService = new ConfigService();
+    private final ComandaNumberService numberService = new ComandaNumberService();
 
-    public void open(String numero, String cliente) {
+    public void open(String cliente) {
         try {
             Comanda c = new Comanda();
-            c.setNumero(numero);
+            c.setNumero(numberService.nextNumber());
             c.setCliente(cliente);
             c.setAbertura(DateUtil.now());
             c.setStatus("ABERTA");

@@ -8,6 +8,14 @@
     -fx-text-fill: #FFFFFF;
 }
 
+.check-box {
+    -fx-text-fill: #FFFFFF;
+}
+
+.check-box .text {
+    -fx-fill: #FFFFFF;
+}
+
 .title {
     -fx-text-fill: #007BFF;
     -fx-font-size: 22px;
@@ -39,10 +47,12 @@
 
 .tab-pane .tab-content-area {
     -fx-background-color: #1E1E1E;
+    -fx-padding: 10 0 0 0;
 }
 
 .tab {
     -fx-background-color: #2A2A2A;
+    -fx-padding: 8 18 8 18;
 }
 
 .tab:selected {

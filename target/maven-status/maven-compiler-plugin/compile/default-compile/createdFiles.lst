@@ -11,6 +11,7 @@ nexuscomercial\model\Category.class
 nexuscomercial\service\UserService.class
 nexuscomercial\util\DateUtil.class
 nexuscomercial\util\AlertUtil.class
+nexuscomercial\service\ComandaNumberService.class
 nexuscomercial\model\ComandaItem.class
 nexuscomercial\service\CategoryService.class
 nexuscomercial\controller\AppController.class

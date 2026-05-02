@@ -100,6 +100,10 @@ public final class DatabaseManager {
             st.executeUpdate("INSERT OR IGNORE INTO configuracoes(chave,valor) VALUES('limite_padrao','200.00')");
             st.executeUpdate("INSERT OR IGNORE INTO configuracoes(chave,valor) VALUES('nome_estabelecimento','NexusComercial')");
             st.executeUpdate("INSERT OR IGNORE INTO configuracoes(chave,valor) VALUES('mensagem_recibo','Obrigado pela preferencia!')");
+            st.executeUpdate("INSERT OR IGNORE INTO configuracoes(chave,valor) VALUES('numeracao_modo','FIM_DOS_NUMEROS')");
+            st.executeUpdate("INSERT OR IGNORE INTO configuracoes(chave,valor) VALUES('numeracao_data_personalizada','')");
+            st.executeUpdate("INSERT OR IGNORE INTO configuracoes(chave,valor) VALUES('numeracao_ultimo_reset','')");
+            st.executeUpdate("INSERT OR IGNORE INTO configuracoes(chave,valor) VALUES('numeracao_seq_atual','0')");
             st.executeUpdate("""
                 INSERT OR IGNORE INTO usuarios(id,nome,usuario,senha,perfil,status)
                 VALUES(1,'Administrador','admin','admin','ADMINISTRADOR','ATIVO')""");

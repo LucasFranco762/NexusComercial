@@ -1,0 +1,14 @@
+NexusComercial
+Comanda # - 
+Abertura: 2026-05-01 19:53:21
+Fechamento: 2026-05-01 19:59:48
+
+Itens:
+
+Total bruto: 0,00
+Desconto: 0,00
+Total final: 0,00
+Pagamento: Dinheiro
+Operador: Administrador
+
+Obrigado pela preferencia!
