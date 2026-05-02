@@ -1,6 +1,7 @@
 package nexuscomercial.service;
 
 import nexuscomercial.dao.ComandaDao;
+import nexuscomercial.dao.ConfigDao;
 import nexuscomercial.dao.ProductDao;
 import nexuscomercial.model.Comanda;
 import nexuscomercial.model.ComandaItem;
@@ -15,6 +16,7 @@ public class ComandaService {
     private final ProductDao productDao = new ProductDao();
     private final ConfigService configService = new ConfigService();
     private final ComandaNumberService numberService = new ComandaNumberService();
+    private final ConfigDao configDao = new ConfigDao();
 
     public void open(String cliente) {
         try {
@@ -70,5 +72,14 @@ public class ComandaService {
             dao.savePayment(c.getId(), formaPagamento, c.getTotal(), c.getDesconto(), finalTotal, SessionContext.getCurrentUser().getNome(), DateUtil.now());
             dao.closeComanda(c.getId(), DateUtil.now());
         } catch (Exception e) { throw new RuntimeException(e); }
+    }
+
+    public void closeCaixa() {
+        try {
+            dao.clearCaixaData();
+            configDao.save("numeracao_seq_atual", "0");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -100,6 +100,20 @@ public class ComandaDao {
         }
     }
 
+    public void clearCaixaData() throws SQLException {
+        try (Connection c = DatabaseManager.getConnection()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement p1 = c.prepareStatement("DELETE FROM pagamentos");
+                 PreparedStatement p2 = c.prepareStatement("DELETE FROM itens_comanda");
+                 PreparedStatement p3 = c.prepareStatement("DELETE FROM comandas")) {
+                p1.executeUpdate();
+                p2.executeUpdate();
+                p3.executeUpdate();
+            }
+            c.commit();
+        }
+    }
+
     private Comanda map(ResultSet rs) throws SQLException {
         Comanda c = new Comanda();
         c.setId(rs.getInt("id")); c.setNumero(rs.getString("numero")); c.setCliente(rs.getString("cliente"));

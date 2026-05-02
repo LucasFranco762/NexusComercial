@@ -67,16 +67,16 @@ public class ReportService {
 
     public Map<String, String> caixaResumo() {
         Map<String, String> m = new LinkedHashMap<>();
-        m.put("totalVendido", "0.00");
+        m.put("totalVendido", "R$ 0.00");
         m.put("comandasAbertas", "0");
         m.put("comandasFechadas", "0");
         m.put("comandaMaior", "-");
         m.put("comandaMenor", "-");
-        m.put("lucroLiquido", "0.00");
+        m.put("lucroLiquido", "R$ 0.00");
         try (Connection c = DatabaseManager.getConnection()) {
             try (PreparedStatement ps = c.prepareStatement("SELECT COALESCE(SUM(total_final),0) total FROM pagamentos");
                  ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) m.put("totalVendido", String.format("%.2f", rs.getDouble("total")));
+                if (rs.next()) m.put("totalVendido", "R$ " + String.format("%.2f", rs.getDouble("total")));
             }
             try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) qtd FROM comandas WHERE status='ABERTA' OR status='BLOQUEADA'");
                  ResultSet rs = ps.executeQuery()) {
@@ -87,18 +87,26 @@ public class ReportService {
                 if (rs.next()) m.put("comandasFechadas", String.valueOf(rs.getInt("qtd")));
             }
             try (PreparedStatement ps = c.prepareStatement("""
-                SELECT c.cliente, p.total_final
+                SELECT c.numero, c.cliente, p.total_final
                 FROM pagamentos p JOIN comandas c ON c.id = p.comanda_id
                 ORDER BY p.total_final DESC LIMIT 1""");
                  ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) m.put("comandaMaior", rs.getString("cliente") + " (" + String.format("%.2f", rs.getDouble("total_final")) + ")");
+                if (rs.next()) {
+                    m.put("comandaMaior",
+                        rs.getString("numero") + "\n" +
+                            rs.getString("cliente") + " - R$ " + String.format("%.2f", rs.getDouble("total_final")));
+                }
             }
             try (PreparedStatement ps = c.prepareStatement("""
-                SELECT c.cliente, p.total_final
+                SELECT c.numero, c.cliente, p.total_final
                 FROM pagamentos p JOIN comandas c ON c.id = p.comanda_id
                 ORDER BY p.total_final ASC LIMIT 1""");
                  ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) m.put("comandaMenor", rs.getString("cliente") + " (" + String.format("%.2f", rs.getDouble("total_final")) + ")");
+                if (rs.next()) {
+                    m.put("comandaMenor",
+                        rs.getString("numero") + "\n" +
+                            rs.getString("cliente") + " - R$ " + String.format("%.2f", rs.getDouble("total_final")));
+                }
             }
         } catch (Exception e) { throw new RuntimeException(e); }
         return m;
@@ -109,7 +117,7 @@ public class ReportService {
         try (Connection c = DatabaseManager.getConnection();
              PreparedStatement ps = c.prepareStatement("SELECT forma, COUNT(*) qtd, COALESCE(SUM(total_final),0) total FROM pagamentos GROUP BY forma ORDER BY total DESC");
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) list.add(rs.getString("forma") + ": " + rs.getInt("qtd") + " | " + String.format("%.2f", rs.getDouble("total")));
+            while (rs.next()) list.add(rs.getString("forma") + ": " + rs.getInt("qtd") + "  |  R$ " + String.format("%.2f", rs.getDouble("total")));
         } catch (Exception e) { throw new RuntimeException(e); }
         return list;
     }
@@ -124,7 +132,7 @@ public class ReportService {
             WHERE i.cancelado = 0 AND c.status='FECHADA'
             GROUP BY p.nome ORDER BY qtd DESC""";
         try (Connection c = DatabaseManager.getConnection(); PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) list.add(rs.getString("nome") + ": " + rs.getInt("qtd"));
+            while (rs.next()) list.add(rs.getString("nome") + ": " + String.format("%02d", rs.getInt("qtd")));
         } catch (Exception e) { throw new RuntimeException(e); }
         return list;
     }

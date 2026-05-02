@@ -1,5 +1,6 @@
 nexuscomercial\dao\ConfigDao.class
 nexuscomercial\service\ProductService.class
+nexuscomercial\util\ConfigJsonStore.class
 nexuscomercial\model\Product.class
 nexuscomercial\model\Comanda.class
 nexuscomercial\util\DatabaseManager.class

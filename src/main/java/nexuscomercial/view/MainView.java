@@ -9,6 +9,7 @@ import javafx.scene.layout.*;
 import nexuscomercial.model.*;
 import nexuscomercial.service.*;
 import nexuscomercial.util.AlertUtil;
+import nexuscomercial.util.ConfigJsonStore;
 import nexuscomercial.util.ReceiptUtil;
 import nexuscomercial.util.SessionContext;
 
@@ -27,11 +28,14 @@ public class MainView {
     private final ConfigService configService = new ConfigService();
     private final ComandaNumberService comandaNumberService = new ComandaNumberService();
     private final TabPane tabPane = new TabPane();
+    private final Map<String, Double> persistedColumnWidths = new HashMap<>(ConfigJsonStore.loadColumnWidths());
     private final javafx.stage.Stage stage;
     private TableView<Comanda> comandasTable;
     private TextField comandasBuscaField;
+    private TextField comandaNumeroPreviewField;
     private CheckBox comandasAbertaCheck;
     private CheckBox comandasFechadaCheck;
+    private Runnable caixaRefreshAction = () -> {};
 
     public MainView(javafx.stage.Stage stage) { this.stage = stage; }
 
@@ -132,6 +136,7 @@ public class MainView {
         Tab tab = new Tab("Comandas");
         VBox box = new VBox(8); box.setPadding(new Insets(10));
         TextField numero = new TextField(comandaNumberService.peekNextNumber());
+        this.comandaNumeroPreviewField = numero;
         numero.setEditable(false);
         numero.setDisable(true);
         numero.setPrefColumnCount(6);
@@ -163,6 +168,8 @@ public class MainView {
         TextField busca = new TextField();
         CheckBox abertaCheck = new CheckBox("Aberta");
         CheckBox fechadaCheck = new CheckBox("Fechada");
+        Button detalhar = new Button("Detalhar");
+        detalhar.setDisable(true);
         abertaCheck.setSelected(true);
         fechadaCheck.setSelected(true);
         this.comandasAbertaCheck = abertaCheck;
@@ -181,21 +188,63 @@ public class MainView {
             comandaService.open(cliente.getText());
             refreshComandas(table, "");
             cliente.clear();
-            numero.setText(comandaNumberService.peekNextNumber());
+            refreshNumeroComandaPreview();
+            caixaRefreshAction.run();
         });
         busca.textProperty().addListener((a, b, c) -> refreshComandas(table, c));
         abertaCheck.setOnAction(e -> refreshComandas(table, busca.getText()));
         fechadaCheck.setOnAction(e -> refreshComandas(table, busca.getText()));
         HBox buscaRow = labeledRow("Busca por Numero/Nome", busca);
         VBox.setMargin(buscaRow, new Insets(14, 0, 0, 0));
-        HBox actionRow = hbox(abrir, spacer(120), abertaCheck, spacer(20), fechadaCheck);
+        HBox actionRow = hbox(abrir, spacer(120), abertaCheck, spacer(20), fechadaCheck, spacer(100), detalhar);
         VBox.setMargin(actionRow, new Insets(12, 0, 0, 0));
+
+        Label detailTitle = new Label("Comanda -");
+        Label detailCliente = new Label("Nome do Cliente: -");
+        TableView<ComandaItem> detailItens = new TableView<>();
+        detailItens.getColumns().add(col("QTD", i -> String.valueOf(i.getQuantidade())));
+        detailItens.getColumns().add(col("Item", ComandaItem::getProdutoNome));
+        detailItens.getColumns().add(col("Valor unitario", i -> String.format("R$ %.2f", i.getValorUnitario())));
+        detailItens.getColumns().add(col("Sub-total", i -> String.format("R$ %.2f", i.getSubtotal())));
+        detailItens.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        Label detailLimite = new Label("Limite: R$ 0.00");
+        Label detailTotal = new Label("Total: R$ 0.00");
+        Label detailRestante = new Label("Restante para limite: R$ 0.00");
+
+        java.util.function.Consumer<Comanda> renderDetail = c -> {
+            if (c == null) return;
+            detailTitle.setText("Comanda " + c.getNumero());
+            detailCliente.setText("Nome do Cliente: " + c.getCliente());
+            detailItens.setItems(FXCollections.observableArrayList(comandaService.items(c.getId()).stream().filter(i -> !i.isCancelado()).toList()));
+            detailLimite.setText("Limite: R$ " + String.format("%.2f", c.getLimite()));
+            detailTotal.setText("Total: R$ " + String.format("%.2f", c.getTotal()));
+            double restante = c.getLimite() - c.getTotal();
+            detailRestante.setText("Restante para limite: R$ " + String.format("%.2f", restante));
+        };
+        table.getSelectionModel().selectedItemProperty().addListener((obs, oldV, selected) -> detalhar.setDisable(selected == null));
+        detalhar.setOnAction(e -> renderDetail.accept(table.getSelectionModel().getSelectedItem()));
+        table.setOnMouseClicked(e -> {
+            if (e.getClickCount() != 2) return;
+            Comanda c = table.getSelectionModel().getSelectedItem();
+            renderDetail.accept(c);
+        });
+
+        VBox rightDetail = new VBox(8, detailTitle, detailCliente, detailItens, detailLimite, detailTotal, detailRestante);
+        VBox.setVgrow(detailItens, Priority.ALWAYS);
+        rightDetail.setPadding(new Insets(0, 0, 0, 10));
+        SplitPane lowerSplit = new SplitPane(table, rightDetail);
+        lowerSplit.setDividerPositions(0.58);
+        VBox.setVgrow(lowerSplit, Priority.ALWAYS);
+        Separator blueDivider = new Separator();
+        blueDivider.setStyle("-fx-background-color: #007BFF; -fx-border-color: #007BFF;");
+
         box.getChildren().addAll(
             labeledRowFixed("Numero da Comanda", numero, 130),
             labeledRowFixed("Nome do Cliente", cliente, 130),
             actionRow,
             buscaRow,
-            table
+            blueDivider,
+            lowerSplit
         );
         tab.setContent(box);
         return tab;
@@ -255,37 +304,55 @@ public class MainView {
         ComboBox<String> pgto = new ComboBox<>(FXCollections.observableArrayList("Dinheiro", "Pix", "Cartao de Debito", "Cartao de Credito", "Outro"));
         pgto.setValue("Dinheiro");
         Button fechar = new Button("Fechar Comanda");
-        ListView<String> listaFechadas = new ListView<>();
+        Button fecharCaixa = new Button("FECHAR CAIXA");
+        fecharCaixa.setStyle("-fx-background-color: #DC3545; -fx-text-fill: #FFFFFF; -fx-font-weight: bold;");
+        TableView<Comanda> tabelaFechadas = new TableView<>();
+        tabelaFechadas.getColumns().add(col("Numero", Comanda::getNumero));
+        tabelaFechadas.getColumns().add(col("Cliente", Comanda::getCliente));
+        tabelaFechadas.getColumns().add(col("Valor", c -> String.format("R$ %.2f", c.getTotal() - c.getDesconto())));
+        tabelaFechadas.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        bindColumnWidthPersistence(tabelaFechadas, "caixa_fechadas");
         Label totalVendido = new Label();
         Label comandasAbertas = new Label();
         Label comandasFechadas = new Label();
         Label comandaMaior = new Label();
         Label comandaMenor = new Label();
         Label lucroLiquido = new Label();
-        ListView<String> formasPagamento = new ListView<>();
-        ListView<String> itensVendidos = new ListView<>();
+        Label formasPagamento = new Label();
+        Label itensVendidos = new Label();
         Label itemMaisVendido = new Label();
         Label itemMenosVendido = new Label();
-        formasPagamento.setPrefHeight(150);
-        itensVendidos.setPrefHeight(150);
+        formasPagamento.setWrapText(true);
+        itensVendidos.setWrapText(true);
+        ScrollPane formasPagamentoScroll = new ScrollPane(formasPagamento);
+        formasPagamentoScroll.setFitToWidth(true);
+        formasPagamentoScroll.setPrefViewportHeight(145);
+        formasPagamentoScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        ScrollPane itensVendidosScroll = new ScrollPane(itensVendidos);
+        itensVendidosScroll.setFitToWidth(true);
+        itensVendidosScroll.setPrefViewportHeight(145);
+        itensVendidosScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
 
         Runnable refreshCaixa = () -> {
             comanda.setItems(FXCollections.observableArrayList(comandaService.find("").stream()
                 .filter(c -> "ABERTA".equals(c.getStatus()) || "BLOQUEADA".equals(c.getStatus()))
                 .toList()));
-            listaFechadas.setItems(FXCollections.observableArrayList(reportService.closedComandaValues()));
+            tabelaFechadas.setItems(FXCollections.observableArrayList(
+                comandaService.find("").stream().filter(c -> "FECHADA".equals(c.getStatus())).toList()
+            ));
             Map<String, String> resumo = reportService.caixaResumo();
-            totalVendido.setText("Total vendido: " + resumo.get("totalVendido"));
-            comandasAbertas.setText("Comandas em aberto: " + resumo.get("comandasAbertas"));
-            comandasFechadas.setText("Comandas fechadas: " + resumo.get("comandasFechadas"));
-            comandaMaior.setText("Comanda com maior valor: " + resumo.get("comandaMaior"));
-            comandaMenor.setText("Comanda com menor valor: " + resumo.get("comandaMenor"));
-            lucroLiquido.setText("Lucro liquido: " + resumo.get("lucroLiquido"));
-            formasPagamento.setItems(FXCollections.observableArrayList(reportService.resumoPorFormaPagamento()));
-            itensVendidos.setItems(FXCollections.observableArrayList(reportService.resumoItensVendidos()));
-            itemMaisVendido.setText("Item mais vendido: " + reportService.itemMaisVendido());
-            itemMenosVendido.setText("Item menos vendido: " + reportService.itemMenosVendido());
+            totalVendido.setText("R$ " + resumo.get("totalVendido").replace("R$ ", ""));
+            comandasAbertas.setText(resumo.get("comandasAbertas"));
+            comandasFechadas.setText(resumo.get("comandasFechadas"));
+            comandaMaior.setText(resumo.get("comandaMaior"));
+            comandaMenor.setText(resumo.get("comandaMenor"));
+            lucroLiquido.setText(resumo.get("lucroLiquido"));
+            formasPagamento.setText(String.join("\n", reportService.resumoPorFormaPagamento()));
+            itensVendidos.setText(String.join("\n", reportService.resumoItensVendidos()));
+            itemMaisVendido.setText(reportService.itemMaisVendido());
+            itemMenosVendido.setText(reportService.itemMenosVendido());
         };
+        this.caixaRefreshAction = refreshCaixa;
         refreshCaixa.run();
 
         fechar.setOnAction(e -> {
@@ -297,33 +364,53 @@ public class MainView {
             refreshCaixa.run();
             refreshComandasInstant();
         });
+        fecharCaixa.setOnAction(e -> {
+            if (AlertUtil.confirm(
+                "Confirmar Fechamento de Caixa",
+                "Fechar caixa",
+                "Deseja realmente fechar o caixa? Esta acao vai zerar comandas e vendas."
+            )) {
+                comandaService.closeCaixa();
+                refreshCaixa.run();
+                refreshComandasInstant();
+                refreshNumeroComandaPreview();
+                AlertUtil.info("Caixa fechado e dados zerados.");
+            }
+        });
         Separator caixaSeparator = new Separator();
         VBox.setMargin(caixaSeparator, new Insets(14, 0, 0, 0));
+        HBox pagamentoRow = labeledRow("Forma de Pagamento", pgto);
+        pagamentoRow.getChildren().addAll(spacer(50), fecharCaixa);
         VBox leftPane = new VBox(8,
             labeledRow("Comanda para Fechamento", comanda),
-            labeledRow("Forma de Pagamento", pgto),
+            pagamentoRow,
             hbox(fechar),
             caixaSeparator,
             new Label("Lista de Comandas Fechadas (Valores)"),
-            listaFechadas
+            tabelaFechadas
         );
         GridPane cardsGrid = new GridPane();
         cardsGrid.setHgap(12);
         cardsGrid.setVgap(12);
-        cardsGrid.add(createCard("Total vendido", totalVendido), 0, 0);
-        cardsGrid.add(createCard("Comandas em aberto", comandasAbertas), 1, 0);
-        cardsGrid.add(createCard("Comandas fechadas", comandasFechadas), 2, 0);
-        cardsGrid.add(createCard("Comanda maior valor", comandaMaior), 0, 1);
-        cardsGrid.add(createCard("Comanda menor valor", comandaMenor), 1, 1);
-        cardsGrid.add(createCard("Lucro liquido", lucroLiquido), 2, 1);
-        cardsGrid.add(createCard("Forma de pagamento", formasPagamento), 0, 2);
-        cardsGrid.add(createCard("Itens vendidos", itensVendidos), 1, 2);
-        cardsGrid.add(createCard("Item mais vendido", itemMaisVendido), 2, 2);
-        cardsGrid.add(createCard("Item menos vendido", itemMenosVendido), 0, 3);
+        cardsGrid.add(createCard("Total vendido", 200, 70, totalVendido), 0, 0);
+        cardsGrid.add(createCard("Comandas abertas", 200, 70, comandasAbertas), 1, 0);
+        cardsGrid.add(createCard("Comandas fechadas", 200, 70, comandasFechadas), 2, 0);
+        cardsGrid.add(createCard("Comanda maior valor", 200, 80, comandaMaior), 0, 1);
+        cardsGrid.add(createCard("Comanda menor valor", 200, 80, comandaMenor), 1, 1);
+        cardsGrid.add(createCard("Lucro liquido", 200, 80, lucroLiquido), 2, 1);
+        cardsGrid.add(createCard("Forma de Pagamento", formasPagamentoScroll), 0, 2);
+        cardsGrid.add(createCard("Itens vendidos", itensVendidosScroll), 1, 2);
+        VBox itensExtremosBox = new VBox(12,
+            createCard("Item mais vendido", 200, 70, itemMaisVendido),
+            createCard("Item menos vendido", 200, 70, itemMenosVendido)
+        );
+        cardsGrid.add(itensExtremosBox, 2, 2);
 
         VBox rightPane = new VBox(10, cardsGrid);
+        rightPane.setStyle("-fx-background-color: #1E1E1E;");
         ScrollPane rightScroll = new ScrollPane(rightPane);
         rightScroll.setFitToWidth(true);
+        rightScroll.setStyle("-fx-background: #1E1E1E; -fx-background-color: #1E1E1E;");
         SplitPane split = new SplitPane(leftPane, rightScroll);
         split.setDividerPositions(0.20);
         VBox.setVgrow(split, Priority.ALWAYS);
@@ -490,6 +577,10 @@ public class MainView {
         refreshComandas(comandasTable, filtro);
     }
 
+    private void refreshNumeroComandaPreview() {
+        if (comandaNumeroPreviewField != null) comandaNumeroPreviewField.setText(comandaNumberService.peekNextNumber());
+    }
+
     private String toTitleCase(String text) {
         if (text == null || text.isEmpty()) return text == null ? "" : text;
         StringBuilder sb = new StringBuilder(text.length());
@@ -525,16 +616,32 @@ public class MainView {
         return r;
     }
 
+    private void bindColumnWidthPersistence(TableView<?> table, String keyPrefix) {
+        for (TableColumn<?, ?> column : table.getColumns()) {
+            String key = keyPrefix + "." + column.getText();
+            double saved = persistedColumnWidths.getOrDefault(key, -1.0);
+            if (saved > 0) column.setPrefWidth(saved);
+            column.widthProperty().addListener((obs, oldV, newV) -> {
+                persistedColumnWidths.put(key, newV.doubleValue());
+                ConfigJsonStore.saveColumnWidths(persistedColumnWidths);
+            });
+        }
+    }
+
     private VBox createCard(String title, javafx.scene.Node... content) {
+        return createCard(title, 200, 200, content);
+    }
+
+    private VBox createCard(String title, double width, double height, javafx.scene.Node... content) {
         Label t = new Label(title);
         VBox card = new VBox(6);
         card.getChildren().add(t);
         card.getChildren().addAll(content);
         card.setPadding(new Insets(10));
-        card.setPrefSize(200, 200);
-        card.setMinSize(200, 200);
-        card.setMaxSize(200, 200);
-        card.setStyle("-fx-background-color: #2A2A2A; -fx-border-color: #3A3A3A; -fx-border-radius: 6; -fx-background-radius: 6;");
+        card.setPrefSize(width, height);
+        card.setMinSize(width, height);
+        card.setMaxSize(width, height);
+        card.setStyle("-fx-background-color: #2A2A2A; -fx-border-color: #007BFF; -fx-border-width: 1.4; -fx-border-radius: 6; -fx-background-radius: 6;");
         return card;
     }
 }
